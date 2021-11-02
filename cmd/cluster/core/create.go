@@ -48,6 +48,7 @@ type CreateOptions struct {
 
 type NonePlatformCreateOptions struct {
 	APIServerAddress string
+	AgentBased       bool
 }
 
 type AWSPlatformOptions struct {

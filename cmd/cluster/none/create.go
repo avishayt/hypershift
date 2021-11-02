@@ -26,9 +26,11 @@ func NewCreateCommand(opts *core.CreateOptions) *cobra.Command {
 
 	opts.NonePlatform = core.NonePlatformCreateOptions{
 		APIServerAddress: "",
+		AgentBased:       false,
 	}
 
 	cmd.Flags().StringVar(&opts.NonePlatform.APIServerAddress, "external-api-server-address", opts.NonePlatform.APIServerAddress, "The external API Server Address when using platform none")
+	cmd.Flags().BoolVar(&opts.NonePlatform.AgentBased, "agent-based", opts.NonePlatform.AgentBased, "Whether or not to add workers via agents")
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -93,6 +95,7 @@ func applyPlatformSpecificsValues(ctx context.Context, exampleOptions *apifixtur
 
 	exampleOptions.None = &apifixtures.ExampleNoneOptions{
 		APIServerAddress: opts.NonePlatform.APIServerAddress,
+		AgentBased:       opts.NonePlatform.AgentBased,
 	}
 	return nil
 }

@@ -3583,6 +3583,8 @@ AWSPlatformSpec
 <tbody><tr><td><p>&#34;AWS&#34;</p></td>
 <td><p>AWSPlatformType represents Amazon Web Services infrastructure.</p>
 </td>
+</tr><tr><td><p>&#34;Agent&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;IBMCloud&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;None&#34;</p></td>

@@ -72,6 +72,7 @@ type ExampleOptions struct {
 
 type ExampleNoneOptions struct {
 	APIServerAddress string
+	AgentBased       bool
 }
 
 type ExampleAWSOptions struct {
@@ -219,8 +220,11 @@ web_identity_token_file = /var/run/secrets/openshift/serviceaccount/token
 			},
 		}
 	case o.None != nil:
-		platformSpec = hyperv1.PlatformSpec{
-			Type: hyperv1.NonePlatform,
+		platformSpec = hyperv1.PlatformSpec{}
+		if o.None.AgentBased {
+			platformSpec.Type = hyperv1.AgentPlatform
+		} else {
+			platformSpec.Type = hyperv1.NonePlatform
 		}
 		services = []hyperv1.ServicePublishingStrategyMapping{
 			{
