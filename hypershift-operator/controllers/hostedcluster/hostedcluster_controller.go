@@ -2039,7 +2039,7 @@ func reconcileAgentCluster(agentCluster *agentv1.AgentCluster, hcluster *hyperv1
 	agentCluster.Spec.ReleaseImage = hcp.Spec.ReleaseImage
 	agentCluster.Spec.ClusterName = hcluster.Name
 	agentCluster.Spec.BaseDomain = hcluster.Spec.DNS.BaseDomain
-	agentCluster.Spec.PullSecretRef = hcp.Spec.PullSecret
+	agentCluster.Spec.PullSecretRef = &hcp.Spec.PullSecret
 	agentCluster.Spec.IgnitionEndpoint.Url = hcluster.Status.IgnitionEndpoint
 	agentCluster.Spec.IgnitionEndpoint.CaCertificate = encodedCACert
 
