@@ -115,6 +115,9 @@ github.com/docker/go-metrics
 # github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
 ## explicit
 github.com/docker/libtrust
+# github.com/eranco74/cluster-api-provider-agent/api v0.0.0-20211109091241-57d9ae4bcc13
+## explicit
+github.com/eranco74/cluster-api-provider-agent/api/v1alpha1
 # github.com/evanphx/json-patch v4.11.0+incompatible
 github.com/evanphx/json-patch
 # github.com/fsnotify/fsnotify v1.5.1
@@ -512,7 +515,7 @@ gopkg.in/square/go-jose.v2/json
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 gopkg.in/yaml.v3
-# k8s.io/api v0.22.2
+# k8s.io/api v0.22.3
 ## explicit
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
@@ -566,7 +569,7 @@ k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme
 k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1
-# k8s.io/apimachinery v0.22.2
+# k8s.io/apimachinery v0.22.3
 ## explicit
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -921,7 +924,7 @@ k8s.io/utils/trace
 # sigs.k8s.io/apiserver-network-proxy v0.0.24
 ## explicit
 sigs.k8s.io/apiserver-network-proxy/pkg/util
-# sigs.k8s.io/cluster-api v0.4.2 => sigs.k8s.io/cluster-api v1.0.0
+# sigs.k8s.io/cluster-api v1.0.0 => sigs.k8s.io/cluster-api v1.0.0
 ## explicit
 sigs.k8s.io/cluster-api/api/v1alpha4
 sigs.k8s.io/cluster-api/api/v1beta1
