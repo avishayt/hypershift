@@ -2139,7 +2139,7 @@ func reconcileAgentCluster(agentCluster *agentv1.AgentCluster, hcluster *hyperv1
 	agentCluster.Spec.BaseDomain = hcluster.Spec.DNS.BaseDomain
 	agentCluster.Spec.PullSecretRef = &hcp.Spec.PullSecret
 	if hcluster.Status.IgnitionEndpoint != "" && encodedCACert != "" {
-		agentCluster.Spec.IgnitionEndpoint = &agentv1.IgnitionEndpoint{Url: hcluster.Status.IgnitionEndpoint, CaCertificate: encodedCACert}
+		agentCluster.Spec.IgnitionEndpoint = &agentv1.IgnitionEndpoint{Url: "https://" + hcluster.Status.IgnitionEndpoint + "/ignition", CaCertificate: encodedCACert}
 	}
 
 	return nil
