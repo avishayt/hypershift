@@ -1011,6 +1011,10 @@ func reconcileHostedControlPlane(hcp *hyperv1.HostedControlPlane, hcluster *hype
 
 	// Pass through Platform spec.
 	hcp.Spec.Platform = *hcluster.Spec.Platform.DeepCopy()
+	if hcluster.Spec.Platform.Type == hyperv1.AgentPlatform{
+		// Agent platform translate to None platform on the hcp.
+		hcp.Spec.Platform.Type = hyperv1.NonePlatform
+	}
 
 	// always reconcile the release image (facilitates rolling forward)
 	hcp.Spec.ReleaseImage = hcluster.Spec.Release.Image
