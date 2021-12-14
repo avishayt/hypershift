@@ -3,7 +3,7 @@ package nodepool
 import (
 	"fmt"
 
-	agentv1 "github.com/eranco74/cluster-api-provider-agent/api/v1alpha1"
+	agentv1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hyperv1 "github.com/openshift/hypershift/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"

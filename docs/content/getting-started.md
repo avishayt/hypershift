@@ -26,6 +26,8 @@ you should adjust to your own environment.
 * Admin access to an OpenShift cluster (version 4.8+) specified by the `KUBECONFIG` environment variable.
 * The OpenShift CLI (`oc`) or Kubernetes CLI (`kubectl`).
 * A valid [pull secret](https://cloud.redhat.com/openshift/install/aws/installer-provisioned) file for the `quay.io/openshift-release-dev` repository.
+
+### AWS platform
 * An [AWS credentials file](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
   with permissions to create infrastructure for the cluster.
 * A Route53 public zone for cluster DNS records.
@@ -57,21 +59,22 @@ you should adjust to your own environment.
           --region $REGION
         ```
 
-## Before you begin
+* Install HyperShift into the management cluster, specifying the OIDC bucket,
+  its region and credentials to access it (see [Prerequisites](#prerequisites)):
 
-Install HyperShift into the management cluster, specifying the OIDC bucket,
-its region and credentials to access it (see [Prerequisites](#prerequisites)):
+  ```shell linenums="1"
+  REGION=us-east-1
+  BUCKET_NAME=your-bucket-name
+  AWS_CREDS="$HOME/.aws/credentials"
 
-```shell linenums="1"
-REGION=us-east-1
-BUCKET_NAME=your-bucket-name
-AWS_CREDS="$HOME/.aws/credentials"
+  hypershift install \
+  --oidc-storage-provider-s3-bucket-name $BUCKET_NAME \
+  --oidc-storage-provider-s3-credentials $AWS_CREDS \
+  --oidc-storage-provider-s3-region $REGION
+  ```
 
-hypershift install \
---oidc-storage-provider-s3-bucket-name $BUCKET_NAME \
---oidc-storage-provider-s3-credentials $AWS_CREDS \
---oidc-storage-provider-s3-region $REGION
-```
+### Agent platform
+* Install the 
 
 ## Create a HostedCluster
 
