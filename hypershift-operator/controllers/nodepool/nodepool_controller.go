@@ -17,6 +17,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/openshift/api/operator/v1alpha1"
+	agentv1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	api "github.com/openshift/hypershift/api"
 	hyperv1 "github.com/openshift/hypershift/api/v1alpha1"
 	"github.com/openshift/hypershift/hypershift-operator/controllers/manifests"
@@ -88,6 +89,7 @@ func (r *NodePoolReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &hyperv1.HostedCluster{}}, handler.EnqueueRequestsFromMapFunc(r.enqueueNodePoolsForHostedCluster)).
 		Watches(&source.Kind{Type: &capiv1.MachineDeployment{}}, handler.EnqueueRequestsFromMapFunc(enqueueParentNodePool)).
 		Watches(&source.Kind{Type: &capiaws.AWSMachineTemplate{}}, handler.EnqueueRequestsFromMapFunc(enqueueParentNodePool)).
+		Watches(&source.Kind{Type: &agentv1.AgentMachineTemplate{}}, handler.EnqueueRequestsFromMapFunc(enqueueParentNodePool)).
 		// We want to reconcile when the user data Secret or the token Secret is unexpectedly changed out of band.
 		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(enqueueParentNodePool)).
 		// We want to reconcile when the ConfigMaps referenced by the spec.config and also the core ones change.
@@ -147,6 +149,16 @@ func (r *NodePoolReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		for k := range awsMachineTemplates {
 			if err := r.Delete(ctx, &awsMachineTemplates[k]); err != nil && !apierrors.IsNotFound(err) {
 				return reconcile.Result{}, fmt.Errorf("failed to delete AWSMachineTemplate: %w", err)
+			}
+		}
+
+		agentMachineTemplates, err := r.listAgentMachineTemplates(nodePool)
+		if err != nil {
+			return reconcile.Result{}, fmt.Errorf("failed to list AgentMachineTemplates: %w", err)
+		}
+		for k := range agentMachineTemplates {
+			if err := r.Delete(ctx, &agentMachineTemplates[k]); err != nil && !apierrors.IsNotFound(err) {
+				return reconcile.Result{}, fmt.Errorf("failed to delete AgentMachineTemplate: %w", err)
 			}
 		}
 
@@ -517,16 +529,11 @@ func (r *NodePoolReconciler) reconcile(ctx context.Context, hcluster *hyperv1.Ho
 		}
 		span.AddEvent("reconciled awsmachinetemplate", trace.WithAttributes(attribute.String("name", machineTemplate.GetName())))
 	case hyperv1.AgentPlatform:
-		machineTemplate = AgentMachineTemplate(nodePool, controlPlaneNamespace)
-		if err := r.Get(ctx, client.ObjectKeyFromObject(machineTemplate), machineTemplate); err != nil {
-			if apierrors.IsNotFound(err) {
-				if createErr := r.Create(ctx, machineTemplate); createErr != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to create AgentMachineTemplate: %w", err)
-				}
-			} else {
-				return ctrl.Result{}, fmt.Errorf("failed to get AgentMachineTemplate: %w", err)
-			}
+		machineTemplate, err = r.reconcileAgentMachineTemplate(ctx, hcluster, nodePool, infraID, controlPlaneNamespace)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to reconcile AgentMachineTemplate: %w", err)
 		}
+		span.AddEvent("reconciled agentmachinetemplate", trace.WithAttributes(attribute.String("name", machineTemplate.GetName())))
 	case hyperv1.NonePlatform:
 		// TODO: When fleshing out platform None design revisit the right semantic to signal this as conditions in a NodePool.
 		return ctrl.Result{}, nil
@@ -589,46 +596,92 @@ func (r NodePoolReconciler) reconcileAWSMachineTemplate(ctx context.Context,
 	infraID string,
 	ami string,
 	controlPlaneNamespace string,
-) (*capiaws.AWSMachineTemplate, error) {
+) (client.Object, error) {
 
-	log := ctrl.LoggerFrom(ctx)
 	// Get target template and hash.
 	targetAWSMachineTemplate, targetTemplateHash := AWSMachineTemplate(infraID, ami, hostedCluster, nodePool, controlPlaneNamespace)
 
+	return r.reconcileMachineTemplate(ctx, nodePool, controlPlaneNamespace,
+		targetAWSMachineTemplate, targetAWSMachineTemplate.Spec.Template.Spec,
+		targetTemplateHash)
+}
+
+func (r NodePoolReconciler) reconcileAgentMachineTemplate(ctx context.Context,
+	hostedCluster *hyperv1.HostedCluster,
+	nodePool *hyperv1.NodePool,
+	infraID string,
+	controlPlaneNamespace string,
+) (client.Object, error) {
+
+	// Get target template and hash.
+	targetAgentMachineTemplate, targetTemplateHash := AgentMachineTemplate(nodePool, controlPlaneNamespace)
+
+	return r.reconcileMachineTemplate(ctx, nodePool, controlPlaneNamespace,
+		targetAgentMachineTemplate, targetAgentMachineTemplate.Spec.Template.Spec,
+		targetTemplateHash)
+}
+
+func (r NodePoolReconciler) reconcileMachineTemplate(ctx context.Context,
+	nodePool *hyperv1.NodePool,
+	controlPlaneNamespace string,
+	targetMachineTemplate client.Object,
+	targetMachineTemplateSpec interface{},
+	targetTemplateHash string,
+) (client.Object, error) {
+
+	log := ctrl.LoggerFrom(ctx)
+
 	// Get current template and hash.
 	currentTemplateHash := nodePool.GetAnnotations()[nodePoolAnnotationCurrentProviderConfig]
-	currentAWSMachineTemplate := &capiaws.AWSMachineTemplate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", nodePool.GetName(), currentTemplateHash),
-			Namespace: controlPlaneNamespace,
-		},
+	var currentMachineTemplate client.Object
+	var currentMachineTemplateSpec interface{}
+	switch targetMachineTemplate.(type) {
+	case *capiaws.AWSMachineTemplate:
+		currentAWSMachineTemplate := &capiaws.AWSMachineTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%s", nodePool.GetName(), currentTemplateHash),
+				Namespace: controlPlaneNamespace,
+			},
+		}
+		currentMachineTemplate = currentAWSMachineTemplate
+		currentMachineTemplateSpec = currentAWSMachineTemplate.Spec.Template.Spec
+	case *agentv1.AgentMachineTemplate:
+		currentAWSMachineTemplate := &capiaws.AWSMachineTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("%s-%s", nodePool.GetName(), currentTemplateHash),
+				Namespace: controlPlaneNamespace,
+			},
+		}
+		currentMachineTemplate = currentAWSMachineTemplate
+		currentMachineTemplateSpec = currentAWSMachineTemplate.Spec.Template.Spec
 	}
-	if err := r.Get(ctx, client.ObjectKeyFromObject(currentAWSMachineTemplate), currentAWSMachineTemplate); err != nil && !apierrors.IsNotFound(err) {
+
+	if err := r.Get(ctx, client.ObjectKeyFromObject(currentMachineTemplate), currentMachineTemplate); err != nil && !apierrors.IsNotFound(err) {
 		return nil, fmt.Errorf("error getting existing AWSMachineTemplate: %w", err)
 	}
 
 	// Template has not changed, return early.
 	// TODO(alberto): can we hash in a deterministic way so we could just compare hashes?
-	if equality.Semantic.DeepEqual(currentAWSMachineTemplate.Spec.Template.Spec, targetAWSMachineTemplate.Spec.Template.Spec) {
-		return currentAWSMachineTemplate, nil
+	if equality.Semantic.DeepEqual(currentMachineTemplateSpec, targetMachineTemplateSpec) {
+		return currentMachineTemplate, nil
 	}
 
 	// Otherwise create new template.
-	log.Info("The AWSMachineTemplate referenced by this NodePool has changed. Creating a new one")
-	if err := r.Create(ctx, targetAWSMachineTemplate); err != nil {
-		return nil, fmt.Errorf("error creating new AWSMachineTemplate: %w", err)
+	log.Info("The provider MachineTemplate referenced by this NodePool has changed. Creating a new one")
+	if err := r.Create(ctx, targetMachineTemplate); err != nil {
+		return nil, fmt.Errorf("error creating new provider MachineTemplate: %w", err)
 	}
 
 	// TODO (alberto): Create a mechanism to cleanup old machineTemplates.
-	// We can't just delete the old AWSMachineTemplate because
+	// We can't just delete the old provider MachineTemplate because
 	// this would break the rolling upgrade process since the MachineSet
-	// being scaled down is still referencing the old AWSMachineTemplate.
+	// being scaled down is still referencing the old provider MachineTemplate.
 	// May be consider one single template the whole NodePool lifecycle. Modify it in place
 	// and trigger rolling update by e.g annotating the machineDeployment.
 
 	nodePool.Annotations[nodePoolAnnotationCurrentProviderConfig] = targetTemplateHash
 
-	return targetAWSMachineTemplate, nil
+	return targetMachineTemplate, nil
 }
 
 func reconcileUserDataSecret(userDataSecret *corev1.Secret, nodePool *hyperv1.NodePool, CA, token []byte, ignEndpoint string) error {
@@ -1207,6 +1260,23 @@ func (r *NodePoolReconciler) listAWSMachineTemplates(nodePool *hyperv1.NodePool)
 			if annotation, ok := AWSMachineTemplate.GetAnnotations()[nodePoolAnnotation]; ok &&
 				annotation == client.ObjectKeyFromObject(nodePool).String() {
 				filtered = append(filtered, awsMachineTemplateList.Items[i])
+			}
+		}
+	}
+	return filtered, nil
+}
+
+func (r *NodePoolReconciler) listAgentMachineTemplates(nodePool *hyperv1.NodePool) ([]agentv1.AgentMachineTemplate, error) {
+	agentMachineTemplateList := &agentv1.AgentMachineTemplateList{}
+	if err := r.List(context.Background(), agentMachineTemplateList); err != nil {
+		return nil, fmt.Errorf("failed to list AgentMachineTemplates: %w", err)
+	}
+	filtered := []agentv1.AgentMachineTemplate{}
+	for i, agentMachineTemplate := range agentMachineTemplateList.Items {
+		if agentMachineTemplate.GetAnnotations() != nil {
+			if annotation, ok := agentMachineTemplate.GetAnnotations()[nodePoolAnnotation]; ok &&
+				annotation == client.ObjectKeyFromObject(nodePool).String() {
+				filtered = append(filtered, agentMachineTemplateList.Items[i])
 			}
 		}
 	}

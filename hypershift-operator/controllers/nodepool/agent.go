@@ -9,7 +9,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func AgentMachineTemplate(nodePool *hyperv1.NodePool, controlPlaneNamespace string) *agentv1.AgentMachineTemplate {
+func AgentMachineTemplate(nodePool *hyperv1.NodePool, controlPlaneNamespace string) (*agentv1.AgentMachineTemplate, string) {
 	agentMachineTemplate := &agentv1.AgentMachineTemplate{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -20,12 +20,15 @@ func AgentMachineTemplate(nodePool *hyperv1.NodePool, controlPlaneNamespace stri
 		},
 		Spec: agentv1.AgentMachineTemplateSpec{
 			Template: agentv1.AgentMachineTemplateResource{
-				Spec: agentv1.AgentMachineSpec{},
+				Spec: agentv1.AgentMachineSpec{
+					MinCPUs:            nodePool.Spec.Platform.Agent.MinCPUs,
+					MinMemoryMiB:       nodePool.Spec.Platform.Agent.MinMemoryMiB,
+					AgentLabelSelector: nodePool.Spec.Platform.Agent.AgentLabelSelector},
 			},
 		},
 	}
 	specHash := hashStruct(agentMachineTemplate.Spec.Template.Spec)
 	agentMachineTemplate.SetName(fmt.Sprintf("%s-%s", nodePool.GetName(), specHash))
 
-	return agentMachineTemplate
+	return agentMachineTemplate, specHash
 }
