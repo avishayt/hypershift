@@ -716,9 +716,16 @@ func reconcileUserDataSecret(userDataSecret *corev1.Secret, nodePool *hyperv1.No
 	if err != nil {
 		return fmt.Errorf("failed to marshal ignition config: %w", err)
 	}
-	userDataSecret.Data = map[string][]byte{
-		"disableTemplating": []byte(base64.StdEncoding.EncodeToString([]byte("true"))),
-		"value":             userDataValue,
+	if nodePool.Spec.Platform.Type == hyperv1.AgentPlatform {
+		userDataSecret.Data = map[string][]byte{
+			"machine-config-pool": []byte("ignition"),
+			"ignition-token":      []byte(encodedToken),
+		}
+	} else {
+		userDataSecret.Data = map[string][]byte{
+			"disableTemplating": []byte(base64.StdEncoding.EncodeToString([]byte("true"))),
+			"value":             userDataValue,
+		}
 	}
 	return nil
 }
