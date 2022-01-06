@@ -415,6 +415,19 @@ type PlatformSpec struct {
 	// +optional
 	// +immutable
 	AWS *AWSPlatformSpec `json:"aws,omitempty"`
+
+	// Agent specifies configuration for agent-based installations.
+	//
+	// +optional
+	// +immutable
+	Agent *AgentPlatformSpec `json:"agent,omitempty"`
+}
+
+// AgentPlatformSpec specifies configuration for agent-based installations.
+type AgentPlatformSpec struct {
+	// AgentNamespace is the namespace where to search for Agents for this cluster
+	// +optional
+	AgentNamespace string `json:"agentNamespace,omitempty"`
 }
 
 // AWSCloudProviderConfig specifies AWS networking configuration.

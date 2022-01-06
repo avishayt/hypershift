@@ -52,6 +52,7 @@ type CreateOptions struct {
 
 type AgentPlatformCreateOptions struct {
 	APIServerAddress string
+	AgentNamespace   string
 }
 
 type NonePlatformCreateOptions struct {

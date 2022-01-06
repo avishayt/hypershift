@@ -76,6 +76,7 @@ type ExampleNoneOptions struct {
 
 type ExampleAgentOptions struct {
 	APIServerAddress string
+	AgentNamespace   string
 }
 
 type ExampleAWSOptions struct {
