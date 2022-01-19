@@ -1,4 +1,4 @@
-package aws
+package core
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
+	agentv1 "github.com/openshift/cluster-api-provider-agent/api/v1alpha1"
 	hyperapi "github.com/openshift/hypershift/api"
 	hyperv1 "github.com/openshift/hypershift/api/v1alpha1"
 	"github.com/openshift/hypershift/cmd/util"
@@ -110,11 +111,14 @@ func DumpCluster(ctx context.Context, opts *DumpOptions) error {
 		&capiv1.MachineDeployment{},
 		&capiv1.Machine{},
 		&capiv1.MachineSet{},
+		&hyperv1.HostedControlPlane{},
 		&capiaws.AWSMachine{},
 		&capiaws.AWSMachineTemplate{},
 		&capiaws.AWSCluster{},
-		&hyperv1.HostedControlPlane{},
 		&hyperv1.AWSEndpointService{},
+		&agentv1.AgentMachine{},
+		&agentv1.AgentMachineTemplate{},
+		&agentv1.AgentCluster{},
 	}
 	resourceList := strings.Join(resourceTypes(resources), ",")
 	cmd.WithNamespace(controlPlaneNamespace).Run(ctx, resourceList)
